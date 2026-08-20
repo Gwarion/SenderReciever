@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Receiver.Api/Receiver.Api.csproj" />
+    <Project Path="src/Sender.Api/Sender.Api.csproj" />
+  </Folder>
+</Solution>

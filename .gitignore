@@ -88,6 +88,14 @@ project.fragment.lock.json
 artifacts/
 .artifacts/
 
+# Local POC outputs
+received/
+*.pid
+*.etl
+*.nettrace
+*.speedscope.json
+*.gcdump
+
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 

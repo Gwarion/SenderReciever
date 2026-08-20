@@ -4,7 +4,7 @@ Proof of concept for memory-efficient communication between two local .NET APIs.
 
 ## Projects
 
-- `Receiver.Api` runs on `http://localhost:5101` and streams the raw request body directly to disk.
+- `Receiver.Api` runs on `http://localhost:5101` and streams the raw request body directly to one `received.txt` file.
 - `Sender.Api` runs on `http://localhost:5102`, simulates DB records in 3-month periods, and streams only the selected upload fields to the receiver through a controller, MediatR command handler, database repository, and upload repository.
 
 Both APIs expose:
@@ -49,6 +49,7 @@ http://localhost:5102/upload-ui
 ```
 
 The receiver disables Kestrel's default 30 MB request-body limit for this local POC so large streamed uploads can reach the file writer.
+The form also shows sender and receiver RAM evolution over time while polling `/metrics`.
 
 ## Send Data
 

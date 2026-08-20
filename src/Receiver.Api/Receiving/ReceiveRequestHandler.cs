@@ -22,9 +22,7 @@ public sealed class ReceiveRequestHandler(
 
         Directory.CreateDirectory(options.OutputDirectory);
 
-        var filePath = Path.Combine(
-            options.OutputDirectory,
-            $"received-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss-fff}.txt");
+        var filePath = Path.Combine(options.OutputDirectory, options.OutputFileName);
         var buffer = ArrayPool<byte>.Shared.Rent(options.BufferSizeBytes);
         var started = Stopwatch.StartNew();
 
@@ -49,7 +47,7 @@ public sealed class ReceiveRequestHandler(
 
             await using var output = new FileStream(
                 filePath,
-                FileMode.CreateNew,
+                FileMode.Create,
                 FileAccess.Write,
                 FileShare.Read,
                 bufferSize: options.BufferSizeBytes,

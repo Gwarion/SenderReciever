@@ -1,6 +1,6 @@
 namespace Receiver.Api;
 
-sealed record ReceiveOptions(string OutputDirectory, int FlushEveryLines, int BufferSizeBytes)
+sealed record ReceiveOptions(string OutputDirectory, string OutputFileName, int FlushEveryLines, int BufferSizeBytes)
 {
     /// <summary>
     /// Reads receiver options from the request query string and application configuration.
@@ -13,11 +13,15 @@ sealed record ReceiveOptions(string OutputDirectory, int FlushEveryLines, int Bu
         var outputDirectory = query.TryGetValue("outputDirectory", out var output)
             ? output.ToString()
             : configuration["Receiver:OutputDirectory"] ?? Path.Combine(AppContext.BaseDirectory, "received");
+        var outputFileName = query.TryGetValue("outputFileName", out var fileName)
+            ? fileName.ToString()
+            : configuration["Receiver:OutputFileName"] ?? "received.txt";
         var flushEveryLines = ReadInt(query, "flushEveryLines", 200_000);
         var bufferSizeBytes = ReadInt(query, "bufferSizeBytes", 1024 * 1024);
 
         return new(
             outputDirectory,
+            Path.GetFileName(outputFileName),
             Math.Clamp(flushEveryLines, 1, 200_000),
             Math.Clamp(bufferSizeBytes, 4 * 1024, 16 * 1024 * 1024));
     }

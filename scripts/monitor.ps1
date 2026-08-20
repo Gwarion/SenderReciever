@@ -13,9 +13,9 @@ while ($true) {
             [pscustomobject]@{
                 Port = $port
                 Pid = $metrics.processId
-                WorkingSetMiB = [math]::Round($metrics.workingSetBytes / 1MB, 1)
-                PrivateMiB = [math]::Round($metrics.privateMemoryBytes / 1MB, 1)
-                ManagedMiB = [math]::Round($metrics.managedAllocatedBytes / 1MB, 1)
+                WorkingSetMB = [math]::Round($metrics.workingSetBytes / 1000000, 1)
+                PrivateMB = [math]::Round($metrics.privateMemoryBytes / 1000000, 1)
+                ManagedMB = [math]::Round($metrics.managedAllocatedBytes / 1000000, 1)
                 Gen0 = $metrics.gen0Collections
                 Gen1 = $metrics.gen1Collections
                 Gen2 = $metrics.gen2Collections

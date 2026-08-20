@@ -13,7 +13,6 @@ namespace Sender.Api;
 /// <param name="MaxRowsPerChunk">Maximum generated records per period when <paramref name="Rows" /> is omitted.</param>
 /// <param name="FlushEveryLines">Accepted for request-shape parity with <see cref="StartUploadCommand" /> but not used for periodic flushing.</param>
 /// <param name="ReceiverUrl">Receiver endpoint URL. Defaults to configuration value Receiver:Url.</param>
-/// <param name="Seed">Optional random seed for repeatable period row counts.</param>
 public sealed record StartDirectStreamingUploadCommand(
     long? Rows = null,
     DateOnly? StartDate = null,
@@ -22,8 +21,7 @@ public sealed record StartDirectStreamingUploadCommand(
     int MinRowsPerChunk = 100_000,
     int MaxRowsPerChunk = 200_000,
     int FlushEveryLines = 200_000,
-    string? ReceiverUrl = null,
-    int? Seed = null) : IRequest<StartUploadResponse>
+    string? ReceiverUrl = null) : IRequest<StartUploadResponse>
 {
     /// <summary>
     /// Applies the same defaults and validation as the baseline upload command.
@@ -39,6 +37,5 @@ public sealed record StartDirectStreamingUploadCommand(
             MinRowsPerChunk,
             MaxRowsPerChunk,
             FlushEveryLines,
-            ReceiverUrl,
-            Seed).Normalize(configuration);
+            ReceiverUrl).Normalize(configuration);
 }

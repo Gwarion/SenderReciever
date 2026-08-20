@@ -13,7 +13,6 @@ namespace Sender.Api;
 /// <param name="MaxRowsPerChunk">Maximum generated records per period when <paramref name="Rows" /> is omitted.</param>
 /// <param name="FlushEveryLines">Maximum number of logical rows written before flushing the upload stream.</param>
 /// <param name="ReceiverUrl">Receiver endpoint URL. Defaults to configuration value Receiver:Url.</param>
-/// <param name="Seed">Optional random seed for repeatable period row counts.</param>
 public sealed record StartUploadCommand(
     long? Rows = null,
     DateOnly? StartDate = null,
@@ -22,8 +21,7 @@ public sealed record StartUploadCommand(
     int MinRowsPerChunk = 100_000,
     int MaxRowsPerChunk = 200_000,
     int FlushEveryLines = 200_000,
-    string? ReceiverUrl = null,
-    int? Seed = null) : IRequest<StartUploadResponse>
+    string? ReceiverUrl = null) : IRequest<StartUploadResponse>
 {
     public Uri ReceiverUri => new(ReceiverUrl!, UriKind.Absolute);
 
@@ -43,6 +41,11 @@ public sealed record StartUploadCommand(
         if (Rows is <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(Rows), "Rows must be greater than zero when specified.");
+        }
+
+        if (Rows is > int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(Rows), $"Rows cannot exceed {int.MaxValue:n0} because the fake database repository returns a List<DatabaseRecord>.");
         }
 
         return this with

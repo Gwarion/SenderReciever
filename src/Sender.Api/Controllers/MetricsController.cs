@@ -10,14 +10,14 @@ public sealed class MetricsController : ControllerBase
     public IActionResult Index() => Ok(new
     {
         service = "Sender.Api",
-            endpoints = new[]
-            {
-                "POST /upload",
-                "POST /upload/direct-stream",
-                "GET /upload-ui",
-                "GET /metrics",
-                "POST /gc/collect"
-            }
+        endpoints = new[]
+        {
+            "POST /upload",
+            "POST /upload/direct-stream",
+            "GET /upload-ui",
+            "GET /metrics",
+            "POST /gc/collect"
+        }
     });
 
     [HttpGet("metrics")]

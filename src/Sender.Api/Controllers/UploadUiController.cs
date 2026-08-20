@@ -6,11 +6,15 @@ namespace Sender.Api;
 public sealed class UploadUiController : Controller
 {
     [HttpGet]
-    public ContentResult Index() => Content(BuildHtml(), "text/html");
+    public ContentResult Index()
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Content(BuildHtml(), "text/html");
+    }
 
     static string BuildHtml()
     {
-        var endDate = DateOnly.FromDateTime(DateTimeOffset.Now.DateTime);
+        var endDate = DateOnly.FromDateTime(DateTime.Today);
         var defaultJson = $$"""
             {
               "startDate": "2024-01-01",
@@ -246,14 +250,28 @@ public sealed class UploadUiController : Controller
             const histories = { sender: [], receiver: [] };
             const run = { initial: null, start: null, end: null, max: null };
             const maxSamples = 240;
+            const metricsPollingMilliseconds = 500;
             let metricsTimer;
 
-            function mibValue(bytes) {
-              return bytes == null ? null : bytes / 1024 / 1024;
+            function mbValue(bytes) {
+              return bytes == null ? null : bytes / 1000 / 1000;
             }
 
-            function formatMib(value) {
-              return value == null ? '-' : `${value.toFixed(1)} MiB`;
+            function formatMb(value) {
+              return value == null ? '-' : `${value.toFixed(1)} MB`;
+            }
+
+            function formatBytes(bytes) {
+              if (bytes == null) {
+                return '-';
+              }
+
+              const gb = bytes / 1000 / 1000 / 1000;
+              if (gb >= 1) {
+                return `${gb.toFixed(2)} GB`;
+              }
+
+              return `${(bytes / 1000 / 1000).toFixed(1)} MB`;
             }
 
             function formatDuration(milliseconds) {
@@ -280,9 +298,9 @@ public sealed class UploadUiController : Controller
             function toSnapshot(metrics) {
               return {
                 processId: metrics.processId,
-                workingSet: mibValue(metrics.workingSetBytes),
-                privateMemory: mibValue(metrics.privateMemoryBytes),
-                managed: mibValue(metrics.managedAllocatedBytes),
+                workingSet: mbValue(metrics.workingSetBytes),
+                privateMemory: mbValue(metrics.privateMemoryBytes),
+                managed: mbValue(metrics.managedAllocatedBytes),
                 gen0: metrics.gen0Collections,
                 gen1: metrics.gen1Collections,
                 gen2: metrics.gen2Collections
@@ -337,10 +355,10 @@ public sealed class UploadUiController : Controller
 
               const rows = [
                 ['PID', end?.processId ?? start?.processId ?? initial?.processId ?? '-'],
-                ['Starting RAM', formatMib(initial?.workingSet)],
-                ['RAM at send start', formatMib(start?.workingSet)],
-                ['RAM at receive end', formatMib(end?.workingSet)],
-                ['Max RAM reached', formatMib(max?.workingSet)],
+                ['Starting RAM', formatMb(initial?.workingSet)],
+                ['RAM at send start', formatMb(start?.workingSet)],
+                ['RAM at receive end', formatMb(end?.workingSet)],
+                ['Max RAM reached', formatMb(max?.workingSet)],
                 ['GC during run', gcDelta(start, end)]
               ];
 
@@ -387,11 +405,11 @@ public sealed class UploadUiController : Controller
               const minValue = 0;
               const latest = history.at(-1);
               const label = latest
-                ? `Latest WS ${latest.workingSet.toFixed(1)} MiB, Private ${latest.privateMemory.toFixed(1)} MiB, Managed ${latest.managed.toFixed(1)} MiB`
+                ? `Latest WS ${latest.workingSet.toFixed(1)} MB, Private ${latest.privateMemory.toFixed(1)} MB, Managed ${latest.managed.toFixed(1)} MB`
                 : 'Waiting for metrics';
 
               svg.innerHTML = `
-                <text x="28" y="18" fill="currentColor" font-size="12">${maxValue.toFixed(0)} MiB</text>
+                <text x="28" y="18" fill="currentColor" font-size="12">${maxValue.toFixed(0)} MB</text>
                 <line x1="28" y1="182" x2="628" y2="182" stroke="currentColor" opacity=".22"></line>
                 <line x1="28" y1="22" x2="28" y2="182" stroke="currentColor" opacity=".22"></line>
                 <polyline points="${pathFor(history, 'workingSet', minValue, maxValue)}" fill="none" stroke="#0f766e" stroke-width="2.5"></polyline>
@@ -460,7 +478,7 @@ public sealed class UploadUiController : Controller
                   } catch (error) {
                     setStatus(error.message, 'error');
                   }
-                }, 1000);
+                }, metricsPollingMilliseconds);
 
                 const response = await fetch(endpoint, {
                   method: 'POST',
@@ -476,7 +494,7 @@ public sealed class UploadUiController : Controller
 
                 run.end = await refreshMetrics();
                 setStatus(
-                  `Completed. Rows ${result.upload?.rowsWritten ?? '-'}, bytes ${result.upload?.bytesWritten ?? '-'}.`,
+                  `Completed. Rows ${result.upload?.rowsWritten ?? '-'}, size ${formatBytes(result.upload?.bytesWritten)}.`,
                   'success',
                   performance.now() - requestStarted);
               } catch (error) {

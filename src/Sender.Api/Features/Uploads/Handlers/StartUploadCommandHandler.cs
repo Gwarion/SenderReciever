@@ -53,39 +53,73 @@ sealed class StartUploadCommandHandler(
             NewLine = "\n"
         };
 
-        await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        if (command.Rows is { } rows)
         {
+            var records = await databaseRepository.GetAllItemsAsync(
+                command.StartDate!.Value,
+                command.EndDate!.Value,
+                checked((int)rows),
+                checked((int)rows),
+                cancellationToken);
+
+            await WriteRecordsAsync(records, writer, progress, command, cancellationToken);
+            progress.RecordPeriod(command.StartDate.Value, command.EndDate.Value, records.Count);
+            await writer.FlushAsync(cancellationToken);
+            return;
+        }
+
+        for (var from = command.StartDate!.Value; from < command.EndDate!.Value; from = from.AddMonths(command.MonthsPerChunk))
+        {
+            var to = Min(from.AddMonths(command.MonthsPerChunk), command.EndDate.Value);
+            var records = await databaseRepository.GetAllItemsAsync(
+                from,
+                to,
+                command.MinRowsPerChunk,
+                command.MaxRowsPerChunk,
+                cancellationToken);
+
             logger.LogInformation(
                 "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
-                chunk.From,
-                chunk.To,
-                chunk.Rows);
+                from,
+                to,
+                records.Count);
 
-            foreach (var record in chunk.Records)
+            await WriteRecordsAsync(records, writer, progress, command, cancellationToken);
+            progress.RecordPeriod(from, to, records.Count);
+        }
+
+        await writer.FlushAsync(cancellationToken);
+
+        async Task WriteRecordsAsync(
+            List<DatabaseRecord> records,
+            StreamWriter streamWriter,
+            UploadProgress uploadProgress,
+            StartUploadCommand uploadCommand,
+            CancellationToken ct)
+        {
+            foreach (var record in records)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                await writer.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), cancellationToken);
+                ct.ThrowIfCancellationRequested();
+                await streamWriter.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), ct);
 
-                progress.RecordRow();
+                uploadProgress.RecordRow();
                 linesSinceFlush++;
 
-                if (linesSinceFlush < command.FlushEveryLines)
+                if (linesSinceFlush < uploadCommand.FlushEveryLines)
                 {
                     continue;
                 }
 
-                await writer.FlushAsync(cancellationToken);
+                await streamWriter.FlushAsync(ct);
                 logger.LogInformation(
                     "Handler flushed after formatting {Rows:n0} records and {Bytes:n0} bytes. {Metrics}",
-                    progress.RowsWritten,
-                    progress.BytesWritten,
+                    uploadProgress.RowsWritten,
+                    uploadProgress.BytesWritten,
                     ProcessMetrics.Capture().ToLogString());
                 linesSinceFlush = 0;
             }
-
-            progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
         }
-
-        await writer.FlushAsync(cancellationToken);
     }
+
+    static DateOnly Min(DateOnly left, DateOnly right) => left < right ? left : right;
 }

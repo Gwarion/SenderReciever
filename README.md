@@ -83,8 +83,7 @@ Use a smaller request for smoke tests:
   "minRowsPerChunk": 1000,
   "maxRowsPerChunk": 2000,
   "flushEveryLines": 200000,
-  "receiverUrl": "http://localhost:5101/receive",
-  "seed": 123
+  "receiverUrl": "http://localhost:5101/receive"
 }
 ```
 

@@ -17,7 +17,7 @@ sealed record ProcessMetricsSnapshot(
     string LatencyMode)
 {
     public string ToLogString() =>
-        $"pid={ProcessId}, ws={ToMiB(WorkingSetBytes):n1} MiB, private={ToMiB(PrivateMemoryBytes):n1} MiB, managed={ToMiB(ManagedAllocatedBytes):n1} MiB, gen0={Gen0Collections}, gen1={Gen1Collections}, gen2={Gen2Collections}";
+        $"pid={ProcessId}, ws={ToMb(WorkingSetBytes):n1} MB, private={ToMb(PrivateMemoryBytes):n1} MB, managed={ToMb(ManagedAllocatedBytes):n1} MB, gen0={Gen0Collections}, gen1={Gen1Collections}, gen2={Gen2Collections}";
 
-    static double ToMiB(long bytes) => bytes / 1024d / 1024d;
+    static double ToMb(long bytes) => bytes / 1000d / 1000d;
 }

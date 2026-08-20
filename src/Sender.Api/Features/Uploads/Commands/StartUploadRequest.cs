@@ -11,8 +11,7 @@ public sealed record StartUploadRequest(
     int MinRowsPerChunk = 100_000,
     int MaxRowsPerChunk = 200_000,
     int FlushEveryLines = 200_000,
-    string? ReceiverUrl = null,
-    int? Seed = null)
+    string? ReceiverUrl = null)
 {
     public StartUploadCommand ToCommand() => new(
         Rows,
@@ -22,8 +21,7 @@ public sealed record StartUploadRequest(
         MinRowsPerChunk,
         MaxRowsPerChunk,
         FlushEveryLines,
-        ReceiverUrl,
-        Seed);
+        ReceiverUrl);
 
     public StartDirectStreamingUploadCommand ToDirectStreamingCommand() => new(
         Rows,
@@ -33,6 +31,5 @@ public sealed record StartUploadRequest(
         MinRowsPerChunk,
         MaxRowsPerChunk,
         FlushEveryLines,
-        ReceiverUrl,
-        Seed);
+        ReceiverUrl);
 }

@@ -49,25 +49,57 @@ sealed class StartDirectStreamingUploadCommandHandler(
     {
         await using var writer = new StreamWriter(destination, new UTF8Encoding(false), bufferSize: 16 * 1024, leaveOpen: true)
         {
-            NewLine = "\r\n"
+            NewLine = "\n"
         };
 
-        await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        if (command.Rows is { } rows)
         {
+            var records = await databaseRepository.GetAllItemsAsync(
+                command.StartDate!.Value,
+                command.EndDate!.Value,
+                checked((int)rows),
+                checked((int)rows),
+                cancellationToken);
+
+            await WriteRecordsAsync(records, writer, progress, cancellationToken);
+            progress.RecordPeriod(command.StartDate.Value, command.EndDate.Value, records.Count);
+            return;
+        }
+
+        for (var from = command.StartDate!.Value; from < command.EndDate!.Value; from = from.AddMonths(command.MonthsPerChunk))
+        {
+            var to = Min(from.AddMonths(command.MonthsPerChunk), command.EndDate.Value);
+            var records = await databaseRepository.GetAllItemsAsync(
+                from,
+                to,
+                command.MinRowsPerChunk,
+                command.MaxRowsPerChunk,
+                cancellationToken);
+
             logger.LogInformation(
                 "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
-                chunk.From,
-                chunk.To,
-                chunk.Rows);
+                from,
+                to,
+                records.Count);
 
-            foreach (var record in chunk.Records)
+            await WriteRecordsAsync(records, writer, progress, cancellationToken);
+            progress.RecordPeriod(from, to, records.Count);
+        }
+
+        async Task WriteRecordsAsync(
+            List<DatabaseRecord> records,
+            StreamWriter streamWriter,
+            UploadProgress uploadProgress,
+            CancellationToken ct)
+        {
+            foreach (var record in records)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                await writer.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), cancellationToken);
-                progress.RecordRow();
+                ct.ThrowIfCancellationRequested();
+                await streamWriter.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), ct);
+                uploadProgress.RecordRow();
             }
-
-            progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
         }
     }
+
+    static DateOnly Min(DateOnly left, DateOnly right) => left < right ? left : right;
 }

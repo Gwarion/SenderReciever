@@ -12,4 +12,10 @@ public sealed class UploadController(IMediator mediator) : ControllerBase
         StartUploadRequest request,
         CancellationToken cancellationToken) =>
         mediator.Send(request.ToCommand(), cancellationToken);
+
+    [HttpPost("direct-stream")]
+    public Task<StartUploadResponse> StartDirectStreamAsync(
+        StartUploadRequest request,
+        CancellationToken cancellationToken) =>
+        mediator.Send(request.ToDirectStreamingCommand(), cancellationToken);
 }

@@ -27,6 +27,8 @@ Start both APIs:
 .\scripts\start-both.ps1
 ```
 
+This also opens the upload form at `http://localhost:5102/upload-ui`.
+
 Or start them separately:
 
 ```powershell
@@ -40,6 +42,14 @@ Monitor both APIs through their own `/metrics` endpoints:
 .\scripts\monitor.ps1
 ```
 
+Open the browser upload form:
+
+```text
+http://localhost:5102/upload-ui
+```
+
+The receiver disables Kestrel's default 30 MB request-body limit for this local POC so large streamed uploads can reach the file writer.
+
 ## Send Data
 
 Each fake DB record has six `Guid` fields. The upload line contains only `Field1 + Field2 + newline`, so each uploaded row is 65 bytes.
@@ -48,6 +58,15 @@ By default, the sender simulates 3-month DB fetches from `2024-01-01` through to
 
 ```powershell
 Invoke-RestMethod http://localhost:5102/upload `
+  -Method Post `
+  -ContentType 'application/json' `
+  -Body '{}'
+```
+
+Compare the lower-flush strategy:
+
+```powershell
+Invoke-RestMethod http://localhost:5102/upload/direct-stream `
   -Method Post `
   -ContentType 'application/json' `
   -Body '{}'
@@ -85,6 +104,7 @@ Invoke-RestMethod http://localhost:5102/upload `
 - `IUploadRepository` exposes `UploadGzipAsync(...)` and owns HTTP transport details.
 - `HttpUploadRepository` is registered through `AddHttpClient<IUploadRepository, HttpUploadRepository>()`.
 - `GzipStreamingUploadHttpContent` compresses while `HttpClient` pulls bytes, so neither handler nor repository has to buffer the upload in memory.
+- `StartDirectStreamingUploadCommandHandler` is the recommended comparison path: it writes directly to the repository stream and does not periodically call `FlushAsync`.
 
 For deeper GC observation, use the process IDs from `/metrics` with:
 

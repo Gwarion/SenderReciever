@@ -7,6 +7,7 @@ namespace Receiver.Api;
 public sealed class ReceiveController(ReceiveRequestHandler handler) : ControllerBase
 {
     [HttpPost]
+    [DisableRequestSizeLimit]
     public Task<IResult> ReceiveAsync(CancellationToken cancellationToken) =>
         handler.ReceiveAsync(HttpContext, cancellationToken);
 }

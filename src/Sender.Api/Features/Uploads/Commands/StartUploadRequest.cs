@@ -24,4 +24,15 @@ public sealed record StartUploadRequest(
         FlushEveryLines,
         ReceiverUrl,
         Seed);
+
+    public StartDirectStreamingUploadCommand ToDirectStreamingCommand() => new(
+        Rows,
+        StartDate,
+        EndDate,
+        MonthsPerChunk,
+        MinRowsPerChunk,
+        MaxRowsPerChunk,
+        FlushEveryLines,
+        ReceiverUrl,
+        Seed);
 }

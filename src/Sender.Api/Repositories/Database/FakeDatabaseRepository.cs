@@ -1,12 +1,10 @@
-using System.Runtime.CompilerServices;
-
 namespace Sender.Api;
 
 sealed class FakeDatabaseRepository : IDatabaseRepository
 {
     public async IAsyncEnumerable<DatabaseChunk> FetchChunksAsync(
         StartUploadCommand command,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var random = command.Seed is { } seed ? new Random(seed) : Random.Shared;
 
@@ -30,19 +28,18 @@ sealed class FakeDatabaseRepository : IDatabaseRepository
 
     static DateOnly Min(DateOnly left, DateOnly right) => left < right ? left : right;
 
-    static async IAsyncEnumerable<DatabaseRecord> GenerateRecords(
+    static IReadOnlyList<DatabaseRecord> GenerateRecords(
         long rows,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
+        var records = new List<DatabaseRecord>(checked((int)rows));
+
         for (long row = 0; row < rows; row++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            yield return DatabaseRecord.Create();
-
-            if (row % 10_000 == 0)
-            {
-                await Task.Yield();
-            }
+            records.Add(DatabaseRecord.Create());
         }
+
+        return records;
     }
 }

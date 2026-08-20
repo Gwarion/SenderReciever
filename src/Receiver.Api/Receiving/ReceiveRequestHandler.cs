@@ -47,7 +47,7 @@ public sealed class ReceiveRequestHandler(
 
             await using var output = new FileStream(
                 filePath,
-                FileMode.Create,
+                FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.Read,
                 bufferSize: options.BufferSizeBytes,

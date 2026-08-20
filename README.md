@@ -4,7 +4,7 @@ Proof of concept for memory-efficient communication between two local .NET APIs.
 
 ## Projects
 
-- `Receiver.Api` runs on `http://localhost:5101` and streams the raw request body directly to one `received.txt` file.
+- `Receiver.Api` runs on `http://localhost:5101` and streams the raw request body directly to a unique `received_HHmmss_guid.txt` file.
 - `Sender.Api` runs on `http://localhost:5102`, simulates DB records in 3-month periods, and streams only the selected upload fields to the receiver through a controller, MediatR command handler, database repository, and upload repository.
 
 Both APIs expose:

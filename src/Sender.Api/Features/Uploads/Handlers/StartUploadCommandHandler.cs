@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using MediatR;
 
 namespace Sender.Api;
@@ -7,7 +8,7 @@ sealed class StartUploadCommandHandler(
     IConfiguration configuration,
     IDatabaseRepository databaseRepository,
     IUploadRepository uploadRepository,
-    UploadLineWriter lineWriter,
+    UploadLineFormatter lineFormatter,
     ILogger<StartUploadCommandHandler> logger)
     : IRequestHandler<StartUploadCommand, StartUploadResponse>
 {
@@ -47,50 +48,44 @@ sealed class StartUploadCommandHandler(
         CancellationToken cancellationToken)
     {
         var linesSinceFlush = 0;
-        var line = System.Buffers.ArrayPool<byte>.Shared.Rent(UploadLineWriter.UploadedLineLength);
-
-        try
+        await using var writer = new StreamWriter(destination, new UTF8Encoding(false), bufferSize: 16 * 1024, leaveOpen: true)
         {
-            line[UploadLineWriter.UploadedLineLength - 1] = (byte)'\n';
+            NewLine = "\n"
+        };
 
-            await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        {
+            logger.LogInformation(
+                "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
+                chunk.From,
+                chunk.To,
+                chunk.Rows);
+
+            foreach (var record in chunk.Records)
             {
-                logger.LogInformation(
-                    "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
-                    chunk.From,
-                    chunk.To,
-                    chunk.Rows);
+                cancellationToken.ThrowIfCancellationRequested();
+                await writer.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), cancellationToken);
 
-                await foreach (var record in chunk.Records.WithCancellation(cancellationToken))
+                progress.RecordRow();
+                linesSinceFlush++;
+
+                if (linesSinceFlush < command.FlushEveryLines)
                 {
-                    lineWriter.WriteUploadLine(record, line);
-                    await destination.WriteAsync(line.AsMemory(0, UploadLineWriter.UploadedLineLength), cancellationToken);
-
-                    progress.RecordRow();
-                    linesSinceFlush++;
-
-                    if (linesSinceFlush < command.FlushEveryLines)
-                    {
-                        continue;
-                    }
-
-                    await destination.FlushAsync(cancellationToken);
-                    logger.LogInformation(
-                        "Handler flushed after formatting {Rows:n0} records and {Bytes:n0} bytes. {Metrics}",
-                        progress.RowsWritten,
-                        progress.BytesWritten,
-                        ProcessMetrics.Capture().ToLogString());
-                    linesSinceFlush = 0;
+                    continue;
                 }
 
-                progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
+                await writer.FlushAsync(cancellationToken);
+                logger.LogInformation(
+                    "Handler flushed after formatting {Rows:n0} records and {Bytes:n0} bytes. {Metrics}",
+                    progress.RowsWritten,
+                    progress.BytesWritten,
+                    ProcessMetrics.Capture().ToLogString());
+                linesSinceFlush = 0;
             }
 
-            await destination.FlushAsync(cancellationToken);
+            progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
         }
-        finally
-        {
-            System.Buffers.ArrayPool<byte>.Shared.Return(line);
-        }
+
+        await writer.FlushAsync(cancellationToken);
     }
 }

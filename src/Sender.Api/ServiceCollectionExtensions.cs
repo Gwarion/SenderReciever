@@ -13,7 +13,7 @@ static class ServiceCollectionExtensions
         services.AddMediatR(configuration =>
             configuration.RegisterServicesFromAssemblyContaining<Program>());
 
-        services.AddSingleton<UploadLineWriter>();
+        services.AddSingleton<UploadLineFormatter>();
         services.AddScoped<IDatabaseRepository, FakeDatabaseRepository>();
 
         services.AddHttpClient<IUploadRepository, HttpUploadRepository>(client =>

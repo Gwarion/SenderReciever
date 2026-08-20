@@ -15,7 +15,7 @@ sealed record ReceiveOptions(string OutputDirectory, string OutputFileName, int 
             : configuration["Receiver:OutputDirectory"] ?? Path.Combine(AppContext.BaseDirectory, "received");
         var outputFileName = query.TryGetValue("outputFileName", out var fileName)
             ? fileName.ToString()
-            : configuration["Receiver:OutputFileName"] ?? "received.txt";
+            : configuration["Receiver:OutputFileName"] ?? CreateDefaultFileName();
         var flushEveryLines = ReadInt(query, "flushEveryLines", 200_000);
         var bufferSizeBytes = ReadInt(query, "bufferSizeBytes", 1024 * 1024);
 
@@ -30,4 +30,7 @@ sealed record ReceiveOptions(string OutputDirectory, string OutputFileName, int 
         query.TryGetValue(key, out var value) && int.TryParse(value, out var parsed)
             ? parsed
             : fallback;
+
+    static string CreateDefaultFileName() =>
+        $"received_{DateTimeOffset.Now:HHmmss}_{Guid.NewGuid():N}.txt";
 }

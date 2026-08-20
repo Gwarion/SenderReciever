@@ -1,5 +1,5 @@
-using System.Buffers;
 using System.Diagnostics;
+using System.Text;
 using MediatR;
 
 namespace Sender.Api;
@@ -8,7 +8,7 @@ sealed class StartDirectStreamingUploadCommandHandler(
     IConfiguration configuration,
     IDatabaseRepository databaseRepository,
     IUploadRepository uploadRepository,
-    UploadLineWriter lineWriter,
+    UploadLineFormatter lineFormatter,
     ILogger<StartDirectStreamingUploadCommandHandler> logger)
     : IRequestHandler<StartDirectStreamingUploadCommand, StartUploadResponse>
 {
@@ -47,33 +47,27 @@ sealed class StartDirectStreamingUploadCommandHandler(
         Stream destination,
         CancellationToken cancellationToken)
     {
-        var line = ArrayPool<byte>.Shared.Rent(UploadLineWriter.UploadedLineLength);
-
-        try
+        await using var writer = new StreamWriter(destination, new UTF8Encoding(false), bufferSize: 16 * 1024, leaveOpen: true)
         {
-            line[UploadLineWriter.UploadedLineLength - 1] = (byte)'\n';
+            NewLine = "\r\n"
+        };
 
-            await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        await foreach (var chunk in databaseRepository.FetchChunksAsync(command, cancellationToken))
+        {
+            logger.LogInformation(
+                "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
+                chunk.From,
+                chunk.To,
+                chunk.Rows);
+
+            foreach (var record in chunk.Records)
             {
-                logger.LogInformation(
-                    "Fetched simulated DB period {From:yyyy-MM-dd}..{To:yyyy-MM-dd}: {Rows:n0} records",
-                    chunk.From,
-                    chunk.To,
-                    chunk.Rows);
-
-                await foreach (var record in chunk.Records.WithCancellation(cancellationToken))
-                {
-                    lineWriter.WriteUploadLine(record, line);
-                    await destination.WriteAsync(line.AsMemory(0, UploadLineWriter.UploadedLineLength), cancellationToken);
-                    progress.RecordRow();
-                }
-
-                progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
+                cancellationToken.ThrowIfCancellationRequested();
+                await writer.WriteLineAsync(lineFormatter.FormatLine(record).AsMemory(), cancellationToken);
+                progress.RecordRow();
             }
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(line);
+
+            progress.RecordPeriod(chunk.From, chunk.To, chunk.Rows);
         }
     }
 }
